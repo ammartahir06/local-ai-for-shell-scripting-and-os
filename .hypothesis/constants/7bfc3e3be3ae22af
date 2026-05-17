@@ -1,0 +1,4 @@
+# file: C:\Users\Ammar\OneDrive\Desktop\PFAI Project\src\code_generator.py
+# hypothesis_version: 6.151.9
+
+['#', '#!/bin/bash', '#!/bin/sh', '#include', '$(', '->', '/*', '//', ';;', 'NULL', '^\\s*(def |class )', 'apt ', 'awk ', 'bash', 'c', 'char *', 'chmod ', 'chown ', 'cron', 'do\n', 'done', 'echo ', 'elif ', 'esac', 'fi', 'find ', 'fork(', 'free(', 'grep ', 'if [', 'int *', 'int main', 'malloc(', 'mutex', 'printf(', 'pthread_', 'python', 'return 0;', 'scanf(', 'sed ', 'semaphore', 'sizeof(', 'struct ', 'systemctl ', 'then\n', 'typedef ', 'void ', 'xargs ']

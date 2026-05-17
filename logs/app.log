@@ -1,0 +1,58 @@
+2026-04-12 21:16:27,162 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-04-12 21:16:27,599 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-04-12 21:16:27,690 [INFO] __main__: All components initialized. Starting UI session.
+2026-04-12 21:18:46,370 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-04-12 21:18:46,585 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-04-12 21:18:46,608 [INFO] __main__: All components initialized. Starting UI session.
+2026-04-12 21:20:49,908 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-04-12 21:20:50,100 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-04-12 21:20:50,166 [INFO] __main__: All components initialized. Starting UI session.
+2026-04-12 22:05:34,879 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-04-12 22:05:35,106 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-04-12 22:05:35,149 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-02 00:14:27,796 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-02 00:14:28,200 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-02 00:14:28,373 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-02 00:15:46,589 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-02 00:15:46,764 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-02 00:15:46,819 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-03 14:46:14,641 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-03 14:46:15,505 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-03 14:46:15,681 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 14:17:22,990 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 14:17:23,622 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 14:17:23,792 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 14:20:24,476 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 14:20:24,664 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 14:20:24,706 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 16:52:55,403 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 16:52:55,646 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 16:52:55,689 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 16:55:40,387 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 16:59:58,195 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 16:59:58,642 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 16:59:58,703 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 17:11:39,429 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 17:11:39,771 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 17:11:39,818 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 18:12:51,901 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 18:12:52,579 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 18:12:52,640 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 18:24:14,425 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 18:24:15,066 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 18:24:15,114 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-04 18:29:34,771 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-04 18:29:35,176 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-04 18:29:35,225 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-13 11:29:57,900 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-13 11:29:58,592 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-13 11:29:58,767 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-18 01:45:46,939 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-18 01:45:47,339 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-18 01:45:47,453 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-18 01:53:38,161 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-18 01:53:38,495 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-18 01:53:38,540 [INFO] __main__: All components initialized. Starting UI session.
+2026-05-18 02:06:00,823 [INFO] __main__: Starting Offline Coding AI Assistant
+2026-05-18 02:06:01,246 [INFO] src.model_loader: Model loaded: markov_model.json (version: markov-ngram-0-transitions)
+2026-05-18 02:06:01,281 [INFO] __main__: All components initialized. Starting UI session.

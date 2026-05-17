@@ -1,0 +1,10 @@
+{
+    "model_filename": "markov_model.json",
+    "model_dir": "models",
+    "resource_dir": "resources",
+    "data_dir": "data",
+    "log_dir": "logs",
+    "max_prompt_length": 2000,
+    "max_context_pairs": 10,
+    "response_timeout_seconds": 30
+}
