@@ -200,9 +200,21 @@ class MarkovGenerator:
     def __init__(self, model: MarkovModel) -> None:
         self._model = model
         self._rng = random.Random()
+        self._tfidf_scorer = None
+
+        # Initialize TF-IDF scorer with NumPy for vectorized scoring
+        try:
+            from src.tfidf_scorer import TFIDFScorer
+            self._tfidf_scorer = TFIDFScorer(model.snippets, _HIGH_VALUE_WORDS)
+        except ImportError:
+            pass  # NumPy not available, fall back to keyword scoring
 
     def generate(self, prompt: str, max_tokens: int = 200, temperature: float = 0.7) -> str:
-        """Generate code based on a prompt by retrieving matching snippets."""
+        """Generate code based on a prompt by retrieving matching snippets.
+
+        Uses both keyword-overlap scoring and TF-IDF cosine similarity
+        (via NumPy) to find the best-matching snippet.
+        """
         # If prompt contains session context, extract only the last user message
         if "User:" in prompt:
             lines = prompt.strip().splitlines()
@@ -216,6 +228,22 @@ class MarkovGenerator:
             prompt_keywords = set(re.findall(r"[a-z][a-z0-9_]*", prompt.lower()))
 
         scored = self._score_snippets(prompt_keywords)
+
+        # Boost scoring with TF-IDF cosine similarity (NumPy vectorized)
+        if self._tfidf_scorer is not None and scored:
+            tfidf_results = self._tfidf_scorer.score(prompt_keywords, top_k=5)
+            # Create a boost map from TF-IDF scores
+            tfidf_boost = {}
+            for tfidf_score, snippet_idx in tfidf_results:
+                snippet = self._model.snippets[snippet_idx]
+                tfidf_boost[id(snippet)] = tfidf_score
+
+            # Apply TF-IDF boost to keyword scores
+            scored = [
+                (score * (1.0 + tfidf_boost.get(id(snippet), 0.0)), snippet)
+                for score, snippet in scored
+            ]
+            scored.sort(key=lambda x: x[0], reverse=True)
 
         # Try composition for prompts that describe a specific function to build.
         # The composer already returns None for known algorithm/DSA requests,

@@ -4,21 +4,26 @@ A self-contained, offline coding assistant for students. Ask questions in plain 
 
 ## How It Works
 
-This project uses a **Markov chain / snippet-retrieval engine** — not a large language model. Here's the pipeline:
+This project uses a **Markov chain / snippet-retrieval engine** with **TF-IDF vectorized scoring** — not a large language model. Here's the pipeline:
 
 ```
-User Prompt → Keyword Extraction → Snippet Scoring → Best Match Retrieval → Formatted Output
+User Prompt → Keyword Extraction → TF-IDF Vectorization (NumPy) → Cosine Similarity → Best Match → Formatted Output
 ```
 
 1. **Prompt Processing** — Validates input and classifies it as a coding request using keyword matching
 2. **Keyword Extraction** — Strips stop words, identifies high-value technical terms
-3. **Intent Detection** — Determines if the prompt needs Python composition or snippet retrieval
-4. **Snippet Scoring** — Scores all stored snippets using weighted keyword overlap, coverage bonus, language context detection, and code content matching
-5. **Code Composition** — For simple Python patterns, composes code from detected intents (group-by, filter, sort, etc.)
-6. **Retrieval** — For complex requests (algorithms, shell scripts, C programs), returns the best-matching pre-built snippet
-7. **Formatting** — Applies language-appropriate formatting (PEP 8 for Python, proper indentation for Bash/C)
+3. **TF-IDF Scoring (NumPy)** — Builds a term-document matrix and computes cosine similarity between the query vector and all snippet vectors using vectorized NumPy operations
+4. **Intent Detection** — Determines if the prompt needs Python composition or snippet retrieval
+5. **Snippet Scoring** — Combines keyword overlap scoring with TF-IDF cosine similarity for accurate retrieval
+6. **Language Context Detection** — Identifies whether prompt asks for Python, Bash, or C
+7. **Code Composition** — For simple Python patterns, composes code from detected intents
+8. **Retrieval** — For complex requests, returns the best-matching pre-built snippet
+9. **Formatting** — Applies language-appropriate formatting (PEP 8 for Python, proper indentation for Bash/C)
+10. **Analytics (Pandas)** — Tracks session history, topic distribution, and usage patterns
+11. **Visualization (Matplotlib)** — Generates charts for corpus statistics, TF-IDF heatmaps, and usage analytics
+12. **Image Processing (OpenCV)** — Preprocesses code screenshots for OCR with adaptive thresholding, perspective correction, and structure analysis
 
-The trained model is a small JSON file (~190 KB) containing **174 indexed code snippets** with extracted keywords. No GPU, no GGUF files, no external ML libraries needed.
+The trained model is a small JSON file (~190 KB) containing **174 indexed code snippets** with extracted keywords. No GPU, no GGUF files needed.
 
 ## Topics Covered
 
@@ -67,36 +72,51 @@ The trained model is a small JSON file (~190 KB) containing **174 indexed code s
 
 ## AI/ML Concepts Used
 
-| Concept | How It's Used |
-|---------|---------------|
-| **N-gram Model** | Tokenizes code into n-grams for potential augmentation |
-| **TF-IDF-like Scoring** | High-value words get 3x weight during matching |
-| **Keyword Extraction** | Stop-word removal + regex-based tokenization |
-| **Intent Classification** | Regex pattern matching to detect user intent |
-| **Retrieval-Based Generation** | Finds best-matching snippet from indexed corpus |
-| **Coverage Scoring** | Rewards snippets that match more of the prompt's keywords |
-| **Language Context Detection** | Identifies whether prompt asks for Python, Bash, or C |
-| **Code Composition** | Builds Python functions from detected structural patterns |
-| **Template Matching** | Multi-word phrase matching in descriptions for precision |
+| Concept | How It's Used | Library |
+|---------|---------------|---------|
+| **TF-IDF Vectorization** | Builds term-document matrix, computes IDF weights | NumPy |
+| **Cosine Similarity** | Vectorized dot product between query and document vectors | NumPy |
+| **N-gram Model** | Tokenizes code into n-grams for potential augmentation | stdlib |
+| **Weighted Scoring** | High-value words get 2x IDF boost during matching | NumPy |
+| **Keyword Extraction** | Stop-word removal + regex-based tokenization | stdlib |
+| **Intent Classification** | Regex pattern matching to detect user intent | stdlib |
+| **Retrieval-Based Generation** | Finds best-matching snippet from indexed corpus | NumPy |
+| **Coverage Scoring** | Rewards snippets that match more prompt keywords | NumPy |
+| **Language Context Detection** | Identifies whether prompt asks for Python, Bash, or C | stdlib |
+| **Code Composition** | Builds Python functions from detected structural patterns | stdlib |
+| **Session Analytics** | DataFrame analysis of usage patterns and topic frequency | Pandas |
+| **Data Visualization** | Charts for corpus distribution, TF-IDF heatmaps, usage trends | Matplotlib |
+| **Image Preprocessing** | Adaptive thresholding, morphological ops for code OCR | OpenCV |
+| **Perspective Correction** | Warp transform for angled photos of code | OpenCV |
+| **Structure Analysis** | Horizontal projection to estimate code lines/indentation | OpenCV + NumPy |
 
 ## Libraries Used
 
-| Library | Purpose |
-|---------|---------|
-| **rich** | Terminal UI with syntax highlighting, panels, spinners |
-| **pyperclip** | Clipboard support (copy generated code) |
-| **pytest** | Test framework |
-| **hypothesis** | Property-based testing |
-
-No external ML/AI libraries (no TensorFlow, PyTorch, transformers, or llama-cpp). The engine is **pure Python + stdlib**.
+| Library | Version | Purpose |
+|---------|---------|---------|
+| **NumPy** | ≥1.24 | TF-IDF matrix operations, cosine similarity, vectorized scoring |
+| **Pandas** | ≥2.0 | Session analytics, corpus statistics, topic frequency analysis |
+| **Matplotlib** | ≥3.7 | Visualization of corpus distribution, TF-IDF heatmaps, usage charts |
+| **OpenCV** | ≥4.8 | Image preprocessing for code screenshots (thresholding, perspective correction, contour detection) |
+| **Rich** | ≥13.0 | Terminal UI with syntax highlighting, panels, spinners |
+| **pyperclip** | ≥1.8 | Clipboard support (copy generated code) |
+| **pytest** | — | Test framework |
+| **hypothesis** | — | Property-based testing |
 
 ## Prerequisites
 
-- **Python 3.10 or later** — the only system requirement
+- **Python 3.10 or later**
+- **NumPy**, **Pandas**, **Matplotlib**, **OpenCV** (installed via `pip install -r requirements.txt`)
 
 ## Quick Start
 
-### 1. Train the model
+### 1. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Train the model
 
 ```bash
 python train_model.py
@@ -104,7 +124,7 @@ python train_model.py
 
 This builds `models/markov_model.json` from the training corpus (~174 snippets across Python, Bash, and C).
 
-### 2. Run the assistant
+### 3. Run the assistant
 
 **Windows** — double-click `run.bat` or from a terminal:
 
@@ -125,7 +145,7 @@ The launcher script will automatically:
 - Install dependencies (`rich`, `pyperclip`)
 - Start the assistant
 
-### 3. Use it
+### 4. Use it
 
 Type a coding question in plain English and press Enter. Examples:
 
@@ -139,12 +159,25 @@ Type a coding question in plain English and press Enter. Examples:
 
 Session context is maintained — follow-up questions reference your previous exchanges (up to 10).
 
+### 5. Run model analysis (demonstrates all 4 libraries)
+
+```bash
+python analyze_model.py
+```
+
+This generates:
+- **TF-IDF statistics** (NumPy) — vocabulary size, matrix sparsity, cosine similarity scores
+- **Corpus analytics** (Pandas) — topic distribution, keyword frequency, session stats
+- **Visualizations** (Matplotlib) — pie charts, bar charts, heatmaps, scatter plots saved to `output/charts/`
+- **Image processing demo** (OpenCV) — creates a code image, applies preprocessing, analyzes structure
+
 ## Project Structure
 
 ```
 ├── run.bat / run.sh           # Launcher scripts (start here)
 ├── main.py                    # Application entry point
 ├── train_model.py             # Model training script
+├── analyze_model.py           # Analysis & visualization (NumPy/Pandas/Matplotlib/OpenCV)
 ├── setup_check.py             # Pre-flight environment checker
 ├── config.json                # App configuration
 ├── requirements.txt           # Python dependencies
@@ -154,6 +187,10 @@ Session context is maintained — follow-up questions reference your previous ex
 │   ├── code_generator.py      # Multi-language code formatting
 │   ├── code_composer.py       # Intent-based Python code composition
 │   ├── markov_engine.py       # Core retrieval engine (scoring, matching)
+│   ├── tfidf_scorer.py        # TF-IDF vectorized scoring (NumPy)
+│   ├── analytics.py           # Session & corpus analytics (Pandas)
+│   ├── visualizer.py          # Chart generation (Matplotlib)
+│   ├── image_processor.py     # Code image preprocessing (OpenCV)
 │   ├── model_loader.py        # Model file loading
 │   ├── session_manager.py     # Conversation history (SQLite)
 │   ├── resource_store.py      # Documentation search
@@ -165,6 +202,9 @@ Session context is maintained — follow-up questions reference your previous ex
 │   ├── c_os_corpus.py         # C/OS concept snippets (26 snippets)
 │   ├── docs/stdlib/           # Reference docs (Python, Bash, Ubuntu, C)
 │   └── examples/              # Code examples by topic
+├── output/                    # Generated output
+│   ├── charts/                # Matplotlib visualizations (PNG)
+│   └── processed/             # OpenCV processed images
 ├── tests/                     # Test suite (34 tests)
 ├── data/                      # Runtime data (SQLite session DB)
 └── logs/                      # Application logs
@@ -226,3 +266,43 @@ To expand the assistant's knowledge:
 ## Portability
 
 The project is fully self-contained. Copy the entire folder to a USB drive, another machine, or zip it up — as long as Python 3.10+ is available, it just works. No Docker, no cloud, no GPU, no system-wide installs.
+
+## How Each Library Is Used
+
+### NumPy (`src/tfidf_scorer.py`)
+- Builds a **term-document matrix** (174 snippets × 1773 terms) as a 2D NumPy array
+- Computes **IDF (Inverse Document Frequency)** weights using `np.log()` and `np.sum()`
+- Applies **high-value word boosting** by multiplying IDF values for important terms
+- Normalizes document vectors using `np.linalg.norm()` for unit-length vectors
+- Computes **cosine similarity** between query and all documents using `np.dot()` (vectorized)
+- Finds top-K results using `np.argsort()` — no Python loops needed
+- Used in `markov_engine.py` to boost snippet scoring during real-time inference
+
+### Pandas (`src/analytics.py`)
+- Loads session history from SQLite into a **DataFrame** using `pd.read_sql_query()`
+- Enriches data with computed columns (word count, response lines, topic category, language)
+- Computes **topic distribution** using `value_counts()` and percentage calculations
+- Groups usage data by date using `groupby()` and `agg()` for time-series analysis
+- Analyzes **keyword frequency** across the corpus using `pd.Series.value_counts()`
+- Generates **corpus summary statistics** (mean, max, min, sum) per language
+- Provides structured DataFrames to Matplotlib for visualization
+
+### Matplotlib (`src/visualizer.py`)
+- **Pie chart**: Snippet distribution by programming language (Python/Bash/C)
+- **Bar chart**: Average code lines per snippet by language
+- **Horizontal bar chart**: Top keywords in the training corpus with frequency
+- **Heatmap**: TF-IDF weight matrix showing term importance across snippets
+- **Scatter plot**: Snippet complexity (keywords vs code lines, colored by language)
+- **Line chart**: Usage over time (queries per day)
+- All charts saved as high-resolution PNG files in `output/charts/`
+
+### OpenCV (`src/image_processor.py`)
+- **Grayscale conversion**: `cv2.cvtColor()` for preprocessing
+- **Gaussian blur**: `cv2.GaussianBlur()` for noise reduction
+- **Adaptive thresholding**: `cv2.adaptiveThreshold()` for varying lighting conditions
+- **Morphological operations**: `cv2.morphologyEx()` to clean text regions
+- **Canny edge detection**: `cv2.Canny()` to find code block boundaries
+- **Contour detection**: `cv2.findContours()` to locate code regions
+- **Perspective transform**: `cv2.getPerspectiveTransform()` + `cv2.warpPerspective()` for angled photos
+- **CLAHE contrast enhancement**: `cv2.createCLAHE()` for better text visibility
+- **Horizontal projection analysis**: NumPy array operations on pixel rows to estimate line count
