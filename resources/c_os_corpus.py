@@ -1401,4 +1401,529 @@ int main() {
 }
 // Compile: gcc -o barrier barrier.c -lpthread
 ''',
+
+    # --- System V Semaphores (Lab 8 style) ---
+    '''
+// System V Semaphore - semget semctl semop - setup, producer, consumer
+// Donut shop model: semaphore tracks available resources
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <errno.h>
+
+#define SEMKEY 456
+#define PLAIN 0
+#define CHOC  1
+#define SHUG  2
+
+// Must define this union yourself on Linux
+union semun {
+    int              val;
+    struct semid_ds *buf;
+    unsigned short  *array;
+    struct seminfo  *__buf;
+};
+
+// Setup: create and initialize semaphore set
+void sem_setup() {
+    int sem_id;
+    union semun arg;
+    unsigned short dcount[3];
+
+    // Create set of 3 semaphores
+    sem_id = semget(SEMKEY, 3, IPC_CREAT | IPC_EXCL | 0666);
+    if (sem_id < 0) { perror("semget"); exit(1); }
+
+    // Set initial values (available resources)
+    dcount[PLAIN] = 2;    // 2 plain donuts
+    dcount[CHOC]  = 3;    // 3 chocolate donuts
+    dcount[SHUG]  = 4;    // 4 sugar donuts
+    arg.array = dcount;
+
+    // SETALL = set all semaphores at once
+    if (semctl(sem_id, 0, SETALL, arg) == -1) {
+        perror("semctl SETALL"); exit(1);
+    }
+    printf("Semaphore set created. ID=%d\\n", sem_id);
+    printf("Initial: Plain=%d, Choc=%d, Sugar=%d\\n",
+           dcount[PLAIN], dcount[CHOC], dcount[SHUG]);
+}
+
+// Producer: add resources (V operation = positive sem_op)
+void producer() {
+    struct sembuf sops[3];
+    union semun arg;
+    unsigned short dcount[3];
+
+    int sem_id = semget(SEMKEY, 3, 0666);
+    if (sem_id < 0) { perror("semget"); exit(1); }
+
+    // Read current values
+    arg.array = dcount;
+    semctl(sem_id, 0, GETALL, arg);
+    printf("Before produce: Plain=%d, Choc=%d, Sugar=%d\\n",
+           dcount[PLAIN], dcount[CHOC], dcount[SHUG]);
+
+    // V operation: POSITIVE sem_op = release/produce
+    sops[0].sem_num = PLAIN; sops[0].sem_op = 2; sops[0].sem_flg = 0;
+    sops[1].sem_num = CHOC;  sops[1].sem_op = 3; sops[1].sem_flg = 0;
+    sops[2].sem_num = SHUG;  sops[2].sem_op = 4; sops[2].sem_flg = 0;
+
+    if (semop(sem_id, sops, 3) == -1) { perror("semop"); exit(1); }
+    printf("Produced donuts!\\n");
+}
+
+// Consumer: take resources (P operation = negative sem_op)
+void consumer() {
+    struct sembuf sops[3];
+    union semun arg;
+    unsigned short dcount[3];
+
+    int sem_id = semget(SEMKEY, 3, 0666);
+    if (sem_id < 0) { perror("semget"); exit(1); }
+
+    // Read current values
+    arg.array = dcount;
+    semctl(sem_id, 0, GETALL, arg);
+    printf("Available: Plain=%d, Choc=%d, Sugar=%d\\n",
+           dcount[PLAIN], dcount[CHOC], dcount[SHUG]);
+
+    // P operation: NEGATIVE sem_op = acquire/consume
+    // Blocks if not enough resources available
+    sops[0].sem_num = PLAIN; sops[0].sem_op = -1; sops[0].sem_flg = 0;
+    sops[1].sem_num = CHOC;  sops[1].sem_op = -1; sops[1].sem_flg = 0;
+    sops[2].sem_num = SHUG;  sops[2].sem_op = -1; sops[2].sem_flg = 0;
+
+    printf("Waiting for resources (blocks if not enough)...\\n");
+    if (semop(sem_id, sops, 3) == -1) { perror("semop"); exit(1); }
+    printf("Got my donuts!\\n");
+}
+
+// Cleanup: delete semaphore set
+void sem_cleanup() {
+    int sem_id = semget(SEMKEY, 3, 0666);
+    semctl(sem_id, 0, IPC_RMID);
+    printf("Semaphore set deleted.\\n");
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s [setup|produce|consume|cleanup]\\n", argv[0]);
+        return 1;
+    }
+    if (strcmp(argv[1], "setup") == 0)   sem_setup();
+    else if (strcmp(argv[1], "produce") == 0) producer();
+    else if (strcmp(argv[1], "consume") == 0) consumer();
+    else if (strcmp(argv[1], "cleanup") == 0) sem_cleanup();
+    return 0;
+}
+// Compile: gcc -o donut donut.c
+// Run: ./donut setup && ./donut produce && ./donut consume && ./donut cleanup
+''',
+    '''
+// System V Shared Memory - shmget shmat shmdt shmctl - writer and reader
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+
+#define PERM (S_IRUSR | S_IWUSR | IPC_CREAT)
+
+// Writer: creates shared memory and writes data
+void writer() {
+    key_t key = ftok("/etc/passwd", 5);
+    int id = shmget(key, 100, PERM);
+    if (id == -1) { perror("shmget"); exit(1); }
+
+    // Attach shared memory - get pointer
+    char *cptr = (char *)shmat(id, NULL, 0);
+    if (cptr == (char *)-1) { perror("shmat"); exit(1); }
+
+    struct timeval tv;
+    for (int i = 0; i < 5; i++) {
+        gettimeofday(&tv, NULL);
+        sprintf(cptr, "Time: %ld.%06ld (write #%d)",
+                tv.tv_sec, tv.tv_usec, i + 1);
+        printf("Writer wrote: %s\\n", cptr);
+        sleep(3);
+    }
+
+    // Detach and delete
+    shmdt(cptr);
+    shmctl(id, IPC_RMID, NULL);
+    printf("Shared memory deleted.\\n");
+}
+
+// Reader: attaches to existing shared memory and reads
+void reader() {
+    key_t key = ftok("/etc/passwd", 5);  // SAME key = SAME segment
+    int id = shmget(key, 100, PERM);
+    if (id == -1) { perror("shmget"); exit(1); }
+
+    char *cptr = (char *)shmat(id, NULL, 0);
+    if (cptr == (char *)-1) { perror("shmat"); exit(1); }
+
+    for (int i = 0; i < 5; i++) {
+        printf("Reader read: %s\\n", cptr);
+        sleep(3);
+    }
+
+    shmdt(cptr);  // Detach only, don't delete (writer does that)
+}
+
+int main(int argc, char *argv[]) {
+    if (argc > 1 && strcmp(argv[1], "read") == 0)
+        reader();
+    else
+        writer();
+    return 0;
+}
+// Compile: gcc -o shmem shmem.c
+// Run in two terminals: ./shmem write  AND  ./shmem read
+''',
+    '''
+// System V Message Queue - msgget msgsnd msgrcv msgctl - complete example
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <sys/wait.h>
+
+// Message struct: mtype MUST be first field and MUST be > 0
+struct msg {
+    long type;      // MUST be first, MUST be > 0
+    int  pid;       // sender's PID
+    int  sum;       // data payload
+};
+
+int main(void) {
+    // Create message queue (IPC_PRIVATE = unique key)
+    int msgid = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
+    if (msgid == -1) { perror("msgget"); return 1; }
+    printf("Message queue created: ID=%d\\n", msgid);
+
+    pid_t pid = fork();
+
+    if (pid == 0) {
+        // CHILD: send a message
+        struct msg m;
+        m.type = 1;              // type must be > 0
+        m.pid  = getpid();
+        m.sum  = 42;
+
+        // msgsnd: size = total struct size MINUS the long mtype
+        msgsnd(msgid, &m, sizeof(m) - sizeof(long), 0);
+        printf("Child %d sent: sum=%d\\n", m.pid, m.sum);
+        exit(0);
+    }
+
+    // PARENT: wait for child, then receive message
+    wait(NULL);
+
+    struct msg m;
+    // msgrcv: type=1 means receive messages with mtype==1
+    // type=0 means receive ANY message
+    msgrcv(msgid, &m, sizeof(m) - sizeof(long), 1, 0);
+    printf("Parent received from PID %d: sum=%d\\n", m.pid, m.sum);
+
+    // CLEANUP: always delete the queue when done
+    msgctl(msgid, IPC_RMID, NULL);
+    printf("Message queue deleted.\\n");
+    return 0;
+}
+// Compile: gcc -o msgq msgq.c
+''',
+    '''
+// LT2 Complete Solution - pipe + fork 4 children + message queue
+// Parent writes 40 random numbers to pipe, forks 4 children
+// Each child reads 10 numbers, computes sum, sends via message queue
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+struct msg {
+    long type;
+    int  pid;
+    int  sum;
+};
+
+int main(void) {
+    int pipefd[2];
+    int numbers[40];
+    int total_sum = 0;
+
+    // 1. Create pipe and message queue
+    if (pipe(pipefd) == -1) { perror("pipe"); return 1; }
+    int msgid = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
+    if (msgid == -1) { perror("msgget"); return 1; }
+
+    // 2. Generate 40 random numbers
+    printf("Parent PID %ld writing 40 numbers to pipe:\\n", (long)getpid());
+    for (int i = 0; i < 40; i++) {
+        numbers[i] = rand() % 100;
+        total_sum += numbers[i];
+        printf("%d ", numbers[i]);
+    }
+    printf("\\nTotal sum = %d\\n", total_sum);
+
+    // 3. Write all 40 numbers to pipe
+    write(pipefd[1], numbers, sizeof(numbers));
+    close(pipefd[1]);  // close write end
+
+    // 4. Fork 4 children
+    for (int i = 0; i < 4; i++) {
+        if (fork() == 0) {
+            // CHILD: read 10 numbers from pipe
+            int arr[10];
+            read(pipefd[0], arr, sizeof(arr));
+
+            int sum = 0;
+            for (int j = 0; j < 10; j++) sum += arr[j];
+
+            // Send result via message queue
+            struct msg m;
+            m.type = 1;
+            m.pid  = getpid();
+            m.sum  = sum;
+            msgsnd(msgid, &m, sizeof(m) - sizeof(long), 0);
+            printf("Child %d: sum of my 10 numbers = %d\\n", getpid(), sum);
+            exit(0);
+        }
+    }
+    close(pipefd[0]);  // parent done reading
+
+    // 5. Receive 4 messages from children
+    printf("\\nParent receiving messages:\\n");
+    for (int i = 0; i < 4; i++) {
+        struct msg m;
+        msgrcv(msgid, &m, sizeof(m) - sizeof(long), 1, 0);
+        printf("  From PID %d: sum = %d\\n", m.pid, m.sum);
+    }
+
+    // 6. Wait for all children
+    for (int i = 0; i < 4; i++) wait(NULL);
+
+    // 7. Cleanup
+    msgctl(msgid, IPC_RMID, NULL);
+    printf("All children done. Queue cleaned up.\\n");
+    return 0;
+}
+// Compile: gcc -o lt2 lt2.c
+''',
+    '''
+// dup2 - Redirect stdout to a file in C
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#define FLAGS (O_WRONLY | O_CREAT | O_APPEND)
+#define MODE  (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+
+int main(void) {
+    // Open file for writing
+    int fd = open("output.txt", FLAGS, MODE);
+    if (fd == -1) { perror("open"); return 1; }
+
+    // dup2: make STDOUT point to the file
+    // After this, anything written to STDOUT goes to output.txt
+    dup2(fd, STDOUT_FILENO);
+    close(fd);  // close raw fd (STDOUT already wired to file)
+
+    // These now write to output.txt, NOT the terminal
+    printf("This goes to the file!\\n");
+    write(STDOUT_FILENO, "So does this\\n", 13);
+
+    return 0;
+}
+// Compile: gcc -o redirect redirect.c
+// Run: ./redirect && cat output.txt
+''',
+    '''
+// fork fan topology - one parent creates multiple children
+// Child breaks out of loop, parent continues forking
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main(int argc, char *argv[]) {
+    int n = 4;  // number of children
+    pid_t childpid = 0;
+
+    // Fan: child breaks, parent continues loop
+    for (int i = 1; i < n; i++) {
+        if ((childpid = fork()) <= 0)
+            break;  // child (0) or error (-1) breaks out
+    }
+
+    if (childpid == 0) {
+        // I am a CHILD
+        printf("Child: PID=%ld, Parent=%ld\\n", (long)getpid(), (long)getppid());
+    } else {
+        // I am the PARENT (finished forking all children)
+        printf("Parent: PID=%ld, created %d children\\n", (long)getpid(), n - 1);
+        // Wait for all children
+        for (int i = 1; i < n; i++)
+            wait(NULL);
+        printf("Parent: All children finished\\n");
+    }
+    return 0;
+}
+''',
+    '''
+// fork chain topology - each process creates the next
+// Parent breaks out of loop, child continues
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main(int argc, char *argv[]) {
+    int n = 4;  // chain length
+    pid_t childpid;
+
+    // Chain: parent breaks, child continues loop
+    for (int i = 1; i < n; i++) {
+        if ((childpid = fork()))
+            break;  // parent (non-zero) breaks out
+        // child (0) continues the loop, becoming next parent
+    }
+
+    printf("Process %ld (parent %ld) in chain\\n",
+           (long)getpid(), (long)getppid());
+
+    if (childpid > 0) {
+        // I forked a child, wait for it
+        wait(NULL);
+    }
+    return 0;
+}
+''',
+    '''
+// FIFO named pipe - mkfifo parent child communication
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+#define FIFO_PERM (S_IRUSR | S_IWUSR)
+
+int main(int argc, char *argv[]) {
+    char *fifo_name = "myfifo";
+
+    // Create FIFO (named pipe) on filesystem
+    if (mkfifo(fifo_name, FIFO_PERM) == -1 && errno != EEXIST) {
+        perror("mkfifo"); return 1;
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) { perror("fork"); return 1; }
+
+    if (pid == 0) {
+        // CHILD: write to FIFO
+        int fd;
+        // Retry open if interrupted by signal
+        while ((fd = open(fifo_name, O_WRONLY)) == -1 && errno == EINTR);
+        char buf[256];
+        snprintf(buf, sizeof(buf), "[PID %ld]: Hello from child!\\n", (long)getpid());
+        write(fd, buf, strlen(buf) + 1);
+        close(fd);
+        return 0;
+    } else {
+        // PARENT: read from FIFO
+        int fd;
+        while ((fd = open(fifo_name, O_RDONLY)) == -1 && errno == EINTR);
+        char buf[256];
+        read(fd, buf, sizeof(buf));
+        printf("Parent read: %s\\n", buf);
+        close(fd);
+        wait(NULL);
+        unlink(fifo_name);  // Remove FIFO from filesystem
+    }
+    return 0;
+}
+// Compile: gcc -o fifo_demo fifo_demo.c
+''',
+    '''
+// Concurrent socket server - fork per client pattern
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/wait.h>
+
+int main(void) {
+    int listenfd, connfd;
+    struct sockaddr_in serv_addr;
+
+    // 1. Create TCP socket
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenfd < 0) { perror("socket"); return 1; }
+
+    // 2. Setup address
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr.sin_port = htons(5000);
+
+    // 3. Bind
+    if (bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+        perror("bind"); return 1;
+    }
+
+    // 4. Listen (queue up to 10 pending connections)
+    listen(listenfd, 10);
+    printf("Server listening on port 5000...\\n");
+
+    while (1) {
+        // 5. Accept (blocks until client connects)
+        connfd = accept(listenfd, NULL, NULL);
+        printf("New client connected!\\n");
+
+        // 6. Fork child to handle this client
+        pid_t pid = fork();
+        if (pid == 0) {
+            // CHILD: handle client
+            close(listenfd);  // child doesn't need listener
+
+            char buffer[1024] = {0};
+            read(connfd, buffer, sizeof(buffer));
+            printf("Client says: %s\\n", buffer);
+
+            char *reply = "Hello from server!";
+            write(connfd, reply, strlen(reply));
+
+            close(connfd);
+            exit(0);  // child exits after serving
+        }
+
+        // PARENT: close client fd (child handles it)
+        close(connfd);
+        // Reap zombie children
+        waitpid(-1, NULL, WNOHANG);
+    }
+    return 0;
+}
+// Compile: gcc -o server server.c
+''',
 ]

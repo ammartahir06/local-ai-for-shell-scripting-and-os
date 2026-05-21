@@ -93,8 +93,16 @@ class PromptProcessor:
     def is_coding_request(self, prompt: str) -> bool:
         """Determine if the prompt is interpretable as a coding request.
 
-        Uses a basic keyword heuristic — returns True if any coding-related
-        keyword appears in the lowercased prompt.
+        Since this is a coding assistant, we accept almost any input.
+        Only reject very short single-word greetings or gibberish.
         """
-        lower = prompt.lower()
-        return any(kw in lower for kw in self._CODING_KEYWORDS)
+        lower = prompt.lower().strip()
+
+        # Reject only obvious non-coding greetings
+        non_coding = {"hi", "hello", "hey", "thanks", "thank you", "ok", "bye",
+                      "good", "nice", "yes", "no", "sure", "okay"}
+        if lower in non_coding:
+            return False
+
+        # Accept everything else as a coding request
+        return True

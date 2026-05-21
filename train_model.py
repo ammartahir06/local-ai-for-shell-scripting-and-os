@@ -21,7 +21,7 @@ from resources.c_os_corpus import C_OS_CORPUS
 
 
 def extract_code_from_markdown(filepath: str) -> list[tuple[str, str]]:
-    """Extract code blocks from a markdown file (Python, Bash, and C).
+    """Extract code blocks from a markdown file (Python, Bash, C, Makefile).
 
     Returns list of (description, code) tuples.
     """
@@ -32,29 +32,46 @@ def extract_code_from_markdown(filepath: str) -> list[tuple[str, str]]:
     # Find headings followed by code blocks
     sections = re.split(r"^(#{1,3}\s+.+)$", content, flags=re.MULTILINE)
 
-    current_heading = os.path.basename(filepath).replace(".md", "")
+    current_heading = os.path.basename(filepath).replace(".md", "").replace(".txt", "")
     for section in sections:
         if re.match(r"^#{1,3}\s+", section):
             current_heading = section.lstrip("# ").strip()
+            # Remove emoji and special chars from heading
+            current_heading = re.sub(r"[🔴🟡🟢🔵⚪🎯💻🍴🧵⏱️🚰]", "", current_heading).strip()
         else:
-            # Match python, bash, sh, and c code blocks
-            blocks = re.findall(r"```(?:python|bash|sh|c)\s*\n(.*?)```", section, re.DOTALL)
+            # Match python, bash, sh, c, and makefile code blocks
+            blocks = re.findall(r"```(?:python|bash|sh|c|makefile)\s*\n(.*?)```", section, re.DOTALL)
             for block in blocks:
                 code = block.strip()
-                if code:
+                if code and len(code.splitlines()) >= 3:  # Skip trivial snippets
                     results.append((current_heading, code))
 
     return results
 
 
 def collect_resource_snippets(resource_dir: str) -> list[tuple[str, str]]:
-    """Collect all Python code snippets from resource markdown files."""
+    """Collect all code snippets from resource markdown files."""
     snippets = []
     for root, _dirs, files in os.walk(resource_dir):
         for fname in files:
             if fname.endswith(".md"):
                 path = os.path.join(root, fname)
                 snippets.extend(extract_code_from_markdown(path))
+    return snippets
+
+
+def collect_doc_snippets(doc_dir: str) -> list[tuple[str, str]]:
+    """Collect code snippets from the Doc/ folder (.md.txt files).
+
+    These are exam guides and practice materials with embedded code.
+    """
+    snippets = []
+    if not os.path.isdir(doc_dir):
+        return snippets
+    for fname in sorted(os.listdir(doc_dir)):
+        if fname.endswith(".md.txt") or fname.endswith(".md"):
+            path = os.path.join(doc_dir, fname)
+            snippets.extend(extract_code_from_markdown(path))
     return snippets
 
 
@@ -107,6 +124,13 @@ def main() -> None:
     resource_snippets = collect_resource_snippets(resource_dir)
     print(f"  Adding {len(resource_snippets)} resource snippets...")
     for description, code in resource_snippets:
+        trainer.add_snippet(code, description)
+
+    # Feed code from Doc/ folder (exam guides and practice materials)
+    doc_dir = os.path.join(project_root, "Doc")
+    doc_snippets = collect_doc_snippets(doc_dir)
+    print(f"  Adding {len(doc_snippets)} Doc/ guide snippets...")
+    for description, code in doc_snippets:
         trainer.add_snippet(code, description)
 
     # Build and save

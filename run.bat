@@ -1,90 +1,48 @@
 @echo off
-setlocal EnableDelayedExpansion
 echo ============================================
 echo   Offline Coding AI Assistant - Starting...
 echo ============================================
 
-REM Determine project root from script location
-set "PROJECT_ROOT=%~dp0"
-cd /d "%PROJECT_ROOT%"
+REM Go to project root
+cd /d "%~dp0"
 
-REM Try to find Python: py, python, python3
-set "PYTHON_CMD="
-
-where py >nul 2>nul
-if !errorlevel! equ 0 (
-    py -c "import sys; exit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>nul
-    if !errorlevel! equ 0 (
-        set "PYTHON_CMD=py"
-        goto :found_python
-    )
+REM Find Python
+set "PY="
+py --version >nul 2>nul
+if not errorlevel 1 set "PY=py"
+if not defined PY (
+    python --version >nul 2>nul
+    if not errorlevel 1 set "PY=python"
 )
-
-where python >nul 2>nul
-if !errorlevel! equ 0 (
-    python -c "import sys; exit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>nul
-    if !errorlevel! equ 0 (
-        set "PYTHON_CMD=python"
-        goto :found_python
-    )
-)
-
-where python3 >nul 2>nul
-if !errorlevel! equ 0 (
-    python3 -c "import sys; exit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>nul
-    if !errorlevel! equ 0 (
-        set "PYTHON_CMD=python3"
-        goto :found_python
-    )
-)
-
-echo [ERROR] Could not find Python 3.10 or later.
-echo.
-echo Please install Python 3.10+ from https://www.python.org/downloads/
-echo Make sure to check "Add Python to PATH" during installation.
-pause
-exit /b 1
-
-:found_python
-echo Found Python: %PYTHON_CMD%
-%PYTHON_CMD% --version
-
-REM Create virtual environment if it doesn't exist
-if not exist ".venv\Scripts\activate.bat" (
-    echo Creating virtual environment...
-    %PYTHON_CMD% -m venv .venv
-    if !errorlevel! neq 0 (
-        echo [ERROR] Failed to create virtual environment.
-        pause
-        exit /b 1
-    )
-)
-
-REM Activate virtual environment
-echo Activating virtual environment...
-call .venv\Scripts\activate.bat
-
-REM Install dependencies
-echo Installing dependencies...
-pip install -q -r requirements.txt
-if !errorlevel! neq 0 (
-    echo [ERROR] Failed to install dependencies.
+if not defined PY (
+    echo [ERROR] Python not found. Install Python 3.10+ and add to PATH.
     pause
     exit /b 1
 )
+echo Found Python: %PY%
 
-REM Train model if it doesn't exist
-if not exist "models\markov_model.json" (
-    echo Training the AI model first run only...
-    python train_model.py
-    if !errorlevel! neq 0 (
-        echo [ERROR] Model training failed.
+REM Check if dependencies are installed
+%PY% -c "import numpy, pandas, matplotlib, cv2, pyperclip" >nul 2>nul
+if errorlevel 1 (
+    echo Installing dependencies first time, may take a minute...
+    %PY% -m pip install -r requirements.txt
+    if errorlevel 1 (
+        echo [ERROR] Failed to install dependencies.
         pause
         exit /b 1
     )
+) else (
+    echo Dependencies OK.
 )
 
-REM Launch the application
-echo Starting the assistant...
+REM Train model if needed
+if not exist "models\markov_model.json" (
+    echo Training model first run only...
+    %PY% train_model.py
+)
+
+REM Launch the assistant
+echo Starting assistant...
 echo.
-cmd /k python main.py
+%PY% main.py
+pause

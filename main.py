@@ -70,11 +70,7 @@ def main() -> None:
 
         # Check if it's a coding request
         if not prompt_processor.is_coding_request(user_input):
-            return (
-                "I couldn't interpret that as a coding request. "
-                "Try asking me to write, explain, or fix Python code, "
-                "shell scripts, Ubuntu commands, or C programs (threading, fork, etc.)."
-            )
+            return "Just type what you need. Example: fork in c, bash loop, linked list"
 
         # Build context from session history
         history = session_manager.get_history(session_id)

@@ -314,6 +314,10 @@ _NON_PYTHON_INDICATORS = {
     "factorial", "fibonacci", "prime",
     "even odd", "reverse digits", "palindrome number",
     "calculator", "menu", "case statement",
+    # Log/file processing patterns
+    "log files", ".log", "critical_logs", "alert_logs",
+    "archive", "error", "warning",
+    "organize files", "move files", "sort files",
 }
 
 

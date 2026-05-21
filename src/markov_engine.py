@@ -124,6 +124,18 @@ _HIGH_VALUE_WORDS = frozenset({
     "scheduling", "context", "switch", "race", "condition",
     "critical", "section", "producer", "consumer", "reader", "writer",
     "dining", "philosophers", "barrier", "condvar", "spinlock",
+    # IPC / System V terms (from Doc guides)
+    "shmget", "shmat", "shmdt", "shmctl", "msgget", "msgsnd", "msgrcv",
+    "msgctl", "semget", "semop", "semctl", "ftok", "ipcrm", "ipcs",
+    "fifo", "mkfifo", "named", "anonymous",
+    # Makefile / Library terms
+    "static", "library", "shared", "fpic", "lpthread", "ar",
+    "target", "dependency", "rule", "clean", "tab",
+    # fork patterns
+    "fan", "chain", "topology", "child", "parent", "wait",
+    "execl", "redirect", "dup2", "stdout", "fileno",
+    # Concurrent server
+    "concurrent", "server", "client", "htons", "inet",
 })
 
 
@@ -352,30 +364,48 @@ class MarkovGenerator:
 
     @staticmethod
     def _detect_language_context(prompt_keywords: set) -> str:
-        """Detect which language the user is asking about."""
-        shell_words = {"bash", "shell", "script", "ubuntu", "linux", "terminal",
-                       "chmod", "grep", "awk", "sed", "apt", "systemctl", "cron",
-                       "crontab", "ssh", "scp", "rsync", "tar", "curl", "wget",
-                       "find", "xargs", "pipe", "redirect", "daemon", "nohup",
-                       "ufw", "iptables", "getopts", "shebang"}
+        """Detect which language the user is asking about.
+
+        C/OS keywords take priority over shell keywords when both are present,
+        since many OS concepts (dup2, pipe, fork) are C system calls.
+        """
         c_words = {"fork", "exec", "pthread", "mutex", "semaphore", "malloc",
                    "calloc", "free", "struct", "typedef", "include", "gcc",
                    "makefile", "socket", "bind", "listen", "accept", "connect",
                    "sigaction", "sighandler", "mmap", "shm", "fifo", "dup2",
                    "waitpid", "getpid", "zombie", "orphan", "deadlock",
-                   "spinlock", "barrier", "condvar", "pid"}
+                   "spinlock", "barrier", "condvar", "pid",
+                   "shmget", "shmat", "shmdt", "msgget", "msgsnd", "msgrcv",
+                   "semget", "semop", "semctl", "ftok", "ipc",
+                   "static", "shared", "library", "fpic", "lpthread",
+                   "dup2", "execl", "execvp", "pipe", "mkfifo"}
+        shell_words = {"bash", "shell", "script", "ubuntu", "linux", "terminal",
+                       "chmod", "grep", "awk", "sed", "apt", "systemctl", "cron",
+                       "crontab", "ssh", "scp", "rsync", "tar", "curl", "wget",
+                       "xargs", "redirect", "daemon", "nohup",
+                       "ufw", "iptables", "getopts", "shebang"}
 
-        if prompt_keywords & shell_words:
-            return "shell"
+        # Check C first — C system calls take priority
         if prompt_keywords & c_words:
             return "c"
+        if prompt_keywords & shell_words:
+            return "shell"
         return ""
 
     @staticmethod
     def _detect_snippet_language(snippet: dict) -> str:
         """Detect the language of a snippet from its code content."""
         code = snippet.get("code", "")
+        # Makefile detection
+        if "gcc " in code and (":" in code.split("\n")[0] if code else False):
+            return "c"
         if "#include" in code or "int main(" in code or "void " in code:
+            return "c"
+        if "pid_t" in code or "fork()" in code or "pthread_" in code:
+            return "c"
+        if "msgget(" in code or "shmget(" in code or "semget(" in code:
+            return "c"
+        if "dup2(" in code or "execl(" in code or "pipe(" in code:
             return "c"
         if code.lstrip().startswith("#!/bin/bash") or code.lstrip().startswith("#!/bin/sh"):
             return "shell"
@@ -383,29 +413,65 @@ class MarkovGenerator:
         shell_patterns = ["echo ", "fi\n", "done\n", "esac", "then\n"]
         if any(p in code for p in shell_patterns):
             return "shell"
+        # Makefile patterns
+        if "\tgcc" in code or "\tar " in code or "make" in code.split("\n")[0]:
+            return "c"
         return "python"
 
     @staticmethod
     def _format_output(prompt: str, snippet: dict) -> str:
-        """Format a single snippet as the response."""
-        desc = snippet.get("description", "")
-        header = f"# {desc}" if desc else f"# Generated for: {prompt}"
+        """Format a single snippet as the response with minimal comments.
+        
+        Keeps only the first description comment and removes all other
+        comment-only lines to produce clean, readable code.
+        """
         code = snippet["code"]
-        # If the code already starts with a comment, don't double up
-        if code.lstrip().startswith("#"):
-            return code
-        return f"{header}\n{code}"
+        lines = code.splitlines()
+        result = []
+        kept_first_comment = False
+
+        for line in lines:
+            stripped = line.strip()
+            # Always keep shebang
+            if stripped.startswith("#!"):
+                result.append(line)
+                continue
+            # Check if this is a comment-only line
+            is_comment = (stripped.startswith("#") or stripped.startswith("//"))
+            if is_comment and not stripped.startswith("#include") and not stripped.startswith("#define"):
+                if not kept_first_comment:
+                    # Keep the first comment as description
+                    result.append(line)
+                    kept_first_comment = True
+                # Skip all other comment-only lines
+                continue
+            # Keep all code lines (including lines with inline comments)
+            result.append(line)
+
+        return "\n".join(result)
 
     @staticmethod
     def _format_combined(prompt: str, primary: dict, secondary: dict) -> str:
-        """Combine two snippets into a single response."""
-        parts = []
-        parts.append(primary["code"])
-        parts.append("")
-        parts.append("# --- Additional related example ---")
-        parts.append("")
-        parts.append(secondary["code"])
-        return "\n".join(parts)
+        """Return only the primary snippet with minimal comments."""
+        code = primary["code"]
+        lines = code.splitlines()
+        result = []
+        kept_first_comment = False
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("#!"):
+                result.append(line)
+                continue
+            is_comment = (stripped.startswith("#") or stripped.startswith("//"))
+            if is_comment and not stripped.startswith("#include") and not stripped.startswith("#define"):
+                if not kept_first_comment:
+                    result.append(line)
+                    kept_first_comment = True
+                continue
+            result.append(line)
+
+        return "\n".join(result)
 
     @staticmethod
     def _fallback_response(prompt: str) -> str:

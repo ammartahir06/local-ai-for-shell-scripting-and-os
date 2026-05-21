@@ -8,7 +8,34 @@ SHELL_CORPUS = [
     # --- Complete Shell Scripts (multi-requirement solutions) ---
     '''
 #!/bin/bash
-# Script with sum_of_digits and multiplication_table functions using read input
+# Sort .log files into critical_logs/, alert_logs/, archive/ based on content
+mkdir -p critical_logs alert_logs archive
+
+log_files_found=false
+
+for file in *.log; do
+    if [ ! -f "$file" ]; then
+        break
+    fi
+
+    log_files_found=true
+
+    if grep -q "ERROR" "$file"; then
+        mv "$file" critical_logs/
+    elif grep -q "WARNING" "$file"; then
+        mv "$file" alert_logs/
+    else
+        mv "$file" archive/
+    fi
+done
+
+if [ "$log_files_found" = false ]; then
+    echo "No .log files found to process."
+fi
+''',
+    '''
+#!/bin/bash
+# Script with sum_of_digits and multiplication_table functions
 
 # Function 1: Calculate the sum of the digits
 sum_of_digits() {
